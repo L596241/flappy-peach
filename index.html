@@ -1,176 +1,154 @@
 <!DOCTYPE html>
 <html lang="en-us">
-<head>
-  <meta charset="utf-8">
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <title>Unity WebGL Player | Runner</title>
-  <link rel="shortcut icon" href="TemplateData/favicon.ico">
-  <link rel="stylesheet" href="TemplateData/style.css">
-  <style>
-    @media only screen and (max-width: 767px) {
-      #unity-container.unity-mobile {
-        transform-origin: center top;
-        transform: rotate(-90deg);
-        margin-top: calc((100vw - 100vh) / 2);
-        margin-left: calc((100vh - 100vw) / 2);
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Unity WebGL Player | Runner</title>
+    <link rel="shortcut icon" href="TemplateData/favicon.ico">
+    <link rel="stylesheet" href="TemplateData/style.css">
+    <style>
+      @media screen and (max-aspect-ratio: 16/9) {
+        #unity-container {
+          transform-origin: center top;
+          transform: rotate(-90deg);
+          width: 100vh;
+          height: 100vw;
+          margin-left: calc((100vw - 100vh) / 2);
+          margin-top: calc((100vh - 100vw) / 2);
+        }
+        #unity-canvas {
+          width: 100vh;
+          height: 100vw;
+        }
+        #rotate-message {
+          display: none;
+        }
       }
-      #unity-canvas.unity-mobile {
-        width: 100vh;
-        height: 100vw;
+      @media screen and (min-aspect-ratio: 16/9) {
+        #unity-container {
+          width: 1024px;
+          height: 432px;
+        }
+        #rotate-message {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          background-color: rgba(0, 0, 0, 0.8);
+          color: white;
+          font-size: 24px;
+          z-index: 999;
+        }
       }
-      #rotate-message {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background-color: rgba(0, 0, 0, 0.8);
-        color: white;
-        font-size: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-direction: column;
-        z-index: 999;
-      }
-    }
-  </style>
-</head>
-<body>
-  <div id="unity-container" class="unity-desktop">
-    <canvas id="unity-canvas" width="1024" height="432"></canvas>
-    <div id="unity-loading-bar">
-      <div id="unity-logo"></div>
-      <div id="unity-progress-bar-empty">
-        <div id="unity-progress-bar-full"></div>
+    </style>
+  </head>
+  <body>
+    <div id="unity-container" class="unity-desktop">
+      <canvas id="unity-canvas" width=1024 height=432></canvas>
+      <div id="unity-loading-bar">
+        <div id="unity-logo"></div>
+        <div id="unity-progress-bar-empty">
+          <div id="unity-progress-bar-full"></div>
+        </div>
+      </div>
+      <div id="unity-warning"> </div>
+      <div id="unity-footer">
+        <div id="unity-webgl-logo"></div>
+        <div id="unity-fullscreen-button"></div>
+        <div id="unity-build-title">Runner</div>
       </div>
     </div>
-    <div id="unity-warning"></div>
-    <div id="unity-footer">
-      <div id="unity-webgl-logo"></div>
-      <div id="unity-fullscreen-button"></div>
-      <div id="unity-build-title">Runner</div>
+    <div id="rotate-message">
+      <p>Please rotate your device to landscape mode to play the game.</p>
     </div>
-  </div>
-  <div id="rotate-message" style="display:none;">
-    <p>Rotate your screen to landscape mode to play the game.</p>
-  </div>
-  <script>
-    var container = document.querySelector("#unity-container");
-    var canvas = document.querySelector("#unity-canvas");
-    var loadingBar = document.querySelector("#unity-loading-bar");
-    var progressBarFull = document.querySelector("#unity-progress-bar-full");
-    var fullscreenButton = document.querySelector("#unity-fullscreen-button");
-    var warningBanner = document.querySelector("#unity-warning");
+    <script>
+      var container = document.querySelector("#unity-container");
+      var canvas = document.querySelector("#unity-canvas");
+      var loadingBar = document.querySelector("#unity-loading-bar");
+      var progressBarFull = document.querySelector("#unity-progress-bar-full");
+      var fullscreenButton = document.querySelector("#unity-fullscreen-button");
+      var warningBanner = document.querySelector("#unity-warning");
 
-    var buildUrl = "Build";
-    var loaderUrl = buildUrl + "/Flappy Peach.loader.js";
-    var config = {
-      dataUrl: buildUrl + "/Flappy Peach.data",
-      frameworkUrl: buildUrl + "/Flappy Peach.framework.js",
-      codeUrl: buildUrl + "/Flappy Peach.wasm",
-      streamingAssetsUrl: "StreamingAssets",
-      companyName: "DefaultCompany",
-      productName: "Runner",
-      productVersion: "1.8",
-    };
+      function unityShowBanner(msg, type) {
+        function updateBannerVisibility() {
+          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+        }
+        var div = document.createElement('div');
+        div.innerHTML = msg;
+        warningBanner.appendChild(div);
+        if (type == 'error') div.style = 'background: red; padding: 10px;';
+        else {
+          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
+          setTimeout(function() {
+            warningBanner.removeChild(div);
+            updateBannerVisibility();
+          }, 5000);
+        }
+        updateBannerVisibility();
+      }
 
-    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-      // Mobile device style: fill the whole browser client area with the game canvas:
-      var screenWidth = window.innerWidth;
-      var screenHeight = window.innerHeight;
-      var canvasWidth = screenWidth;
-      var canvasHeight = screenHeight;
-
-      // Adjust canvas size based on screen size
-      if (screenWidth > screenHeight) {
-        // Landscape Rotation
-      canvasWidth = Math.floor(screenHeight * 16 / 9);
-
-canvasHeight = screenHeight;
-
-canvas.style.width = canvasWidth + 'px';
-
-canvas.style.height = canvasHeight + 'px';
-
-// Adjust device pixel ratio for performance config.devicePixelRatio = window.devicePixelRatio > 2 ? 2 : window.devicePixelRatio;
-
-container.className = "unity-mobile"; canvas.className = "unity-mobile";
-
-// Show rotation message for portrait mode document.getElementById("rotate-message").style.display = "none"; unityShowBanner('Please rotate your device to landscape mode to play the game.');
-
-} else { // Desktop style: Render the game canvas in a window that can be maximized to fullscreen: canvas.style.width = "100%"; canvas.style.height = "100%"; }
-
-loadingBar.style.display = "block";
-
-var script = document.createElement("script"); script.src = loaderUrl; script.onload = () => { createUnityInstance(canvas, config, (progress) => { progressBarFull.style.width = 100 * progress + "%"; }).then((unityInstance) => { loadingBar.style.display = "none"; fullscreenButton.onclick = () => { unityInstance.SetFullscreen(1); }; }).catch((message) => { alert(message); }); }; document.body.appendChild(script);
-
-// Show rotation message for portrait mode window.addEventListener("orientationchange", function() { if (window.orientation == 0 || window.orientation == 180) { // Portrait mode container.style.display = "none"; document.getElementById("rotate-message").style.display = "flex"; } else { // Landscape mode container.style.display = "block"; document.getElementById("rotate-message").style.display = "none"; } });
-
-canvas.style.width = canvasWidth + 'px';
-canvas.style.height = canvasHeight + 'px';
-
-  // Adjust device pixel ratio for performance
-  config.devicePixelRatio = window.devicePixelRatio > 2 ? 2 : window.devicePixelRatio;
-
-  container.className = "unity-mobile";
-  canvas.className = "unity-mobile";
-
-  // Show rotation message for portrait mode
-  var rotateMessage = document.getElementById("rotate-message");
-  rotateMessage.style.display = "none";
-
-  unityShowBanner("Please rotate your device to landscape mode to play the game.");
-
-  window.addEventListener("orientationchange", function() {
-    screenWidth = window.innerWidth;
-    screenHeight = window.innerHeight;
-
-    if (screenWidth > screenHeight) {
-      // Landscape Rotation
-      canvasWidth = Math.floor(screenHeight * 16 / 9);
-      canvasHeight = screenHeight;
-      canvas.style.width = canvasWidth + 'px';
-      canvas.style.height = canvasHeight + 'px';
-      container.className = "unity-mobile";
-      canvas.className = "unity-mobile";
-      rotateMessage.style.display = "none";
-    } else {
-      // Portrait orientation
-      canvasWidth = screenWidth;
-      canvasHeight = Math.floor(screenWidth * 9 / 16);
-      canvas.style.width = canvasWidth + 'px';
-      canvas.style.height = canvasHeight + 'px';
-      container.className = "unity-mobile";
-      canvas.className = "unity-mobile";
-      rotateMessage.style.display = "flex";
-    }
-  });
-} else {
-  // Desktop style: Render the game canvas in a window that can be maximized to fullscreen:
-  canvas.style.width = "100%";
-  canvas.style.height = "100%";
-}
-
-loadingBar.style.display = "block";
-
-var script = document.createElement("script");
-script.src = loaderUrl;
-script.onload = () => {
-  createUnityInstance(canvas, config, (progress) => {
-    progressBarFull.style.width = 100 * progress + "%";
-  }).then((unityInstance) => {
-    loadingBar.style.display = "none";
-    fullscreenButton.onclick = () => {
-      unityInstance.SetFullscreen(1);
-    };
-  }).catch((message) => {
-    alert(message);
-  });
+      var buildUrl = "Build";
+var loaderUrl = buildUrl + "/Flappy Peach.loader.js";
+var config = {
+dataUrl: buildUrl + "/Flappy Peach.data",
+frameworkUrl: buildUrl + "/Flappy Peach.framework.js",
+codeUrl: buildUrl + "/Flappy Peach.wasm",
+streamingAssetsUrl: "StreamingAssets",
+companyName: "DefaultCompany",
+productName: "Runner",
+productVersion: "1.8",
+showBanner: unityShowBanner,
 };
-document.body.appendChild(script);
+  // By default Unity keeps WebGL canvas render target size matched with
+  // the DOM size of the canvas element (scaled by window.devicePixelRatio)
+  // Set this to false if you want to decouple this synchronization from
+  // happening inside the engine, and you would instead like to size up
+  // the canvas DOM size and WebGL render target sizes yourself.
+  // config.matchWebGLToCanvasSize = false;
 
+  if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+    // Mobile device style: fill the whole browser client area with the game canvas:
+
+    var meta = document.createElement('meta');
+    meta.name = 'viewport';
+    meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+    document.getElementsByTagName('head')[0].appendChild(meta);
+    container.className = "unity-mobile";
+    canvas.className = "unity-mobile";
+
+    // To lower canvas resolution on mobile devices to gain some
+    // performance, uncomment the following line:
+    // config.devicePixelRatio = 1;
+
+    unityShowBanner('WebGL builds are not supported on mobile devices.');
+  } else {
+    // Desktop style: Render the game canvas in a window that can be maximized to fullscreen:
+
+    canvas.style.width = "1024px";
+    canvas.style.height = "432px";
+  }
+
+  loadingBar.style.display = "block";
+
+  var script = document.createElement("script");
+  script.src = loaderUrl;
+  script.onload = () => {
+    createUnityInstance(canvas, config, (progress) => {
+      progressBarFull.style.width = 100 * progress + "%";
+    }).then((unityInstance) => {
+      loadingBar.style.display = "none";
+      fullscreenButton.onclick = () => {
+        unityInstance.SetFullscreen(1);
+      };
+    }).catch((message) => {
+      alert(message);
+    });
+  };
+  document.body.appendChild(script);
 </script>
 </body>
-</html>
-
+</html> 
